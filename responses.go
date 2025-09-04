@@ -20,8 +20,8 @@ type valid_resp struct {
 	CleanedBody string `json:"cleaned_body"`
 }
 
-func sendValidResponse(w http.ResponseWriter, r *http.Request, cleaned_body string) {
-	w.WriteHeader(200)
+func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {
+	w.WriteHeader(http.StatusOK)
 	respBody := valid_resp{
 		Valid:       true,
 		CleanedBody: cleaned_body,
@@ -36,8 +36,8 @@ func sendValidResponse(w http.ResponseWriter, r *http.Request, cleaned_body stri
 	w.Write(dat)
 }
 
-func sendErrorResponse(w http.ResponseWriter, r *http.Request, err_str string) {
-	w.WriteHeader(500)
+func sendErrorResponse(w http.ResponseWriter, err_str string) {
+	w.WriteHeader(http.StatusInternalServerError)
 	respBody := err_resp{
 		Error: fmt.Sprintf("Something went wrong: %s", err_str),
 	}
@@ -50,8 +50,8 @@ func sendErrorResponse(w http.ResponseWriter, r *http.Request, err_str string) {
 	w.Write(dat)
 }
 
-func sendChirpTooLong(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(400)
+func sendChirpTooLong(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusBadRequest)
 	respBody := err_resp{
 		Error: "Chirp is too long",
 	}

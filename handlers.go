@@ -18,16 +18,14 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	params := parameters{}
 	err := decoder.Decode(&params)
 
-	// Check for error decoding
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
-		sendErrorResponse(w, r, err.Error())
+		sendErrorResponse(w, err.Error())
 		return
 	}
 
-	// validate message size
 	if len(params.Body) > 140 {
-		sendChirpTooLong(w, r)
+		sendChirpTooLong(w)
 		return
 	}
 
@@ -38,7 +36,7 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleaned_body := StripBadWords(params.Body, "****", badWords)
-	sendValidResponse(w, r, cleaned_body)
+	sendCleanedResponse(w, cleaned_body)
 }
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +67,6 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("resetHandler firing...\n")
 	cfg.FileserverHits.Store(0)
 }
 
