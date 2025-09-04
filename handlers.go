@@ -14,18 +14,6 @@ func (cfg *apiConfig) appHandler() http.Handler {
 }
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		Body string `json:"body"`
-	}
-
-	type err_resp struct {
-		Error string `json:"error"`
-	}
-
-	type valid_resp struct {
-		Valid bool `json:"valid"`
-	}
-
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
@@ -33,47 +21,24 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	// Check for error decoding
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
-		respBody := err_resp{
-			Error: "Something went wrong",
-		}
-		dat, err := json.Marshal(respBody)
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			return
-		}
-		w.Write(dat)
+		sendErrorResponse(w, r, err.Error())
 		return
 	}
 
 	// validate message size
 	if len(params.Body) > 140 {
-		w.WriteHeader(400)
-		respBody := err_resp{
-			Error: "Chirp is too long",
-		}
-		dat, err := json.Marshal(respBody)
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			return
-		}
-		w.Write(dat)
+		sendChirpTooLong(w, r)
 		return
 	}
-	log.Printf("len of body = %d\n", len(params.Body))
-	log.Printf("%s\n", params.Body)
 
-	// Write response
-	w.WriteHeader(200)
-	respBody := valid_resp{
-		Valid: true,
+	badWords := []string{
+		"kerfuffle",
+		"sharbert",
+		"fornax",
 	}
-	dat, err := json.Marshal(respBody)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		return
-	}
-	w.Write(dat)
+
+	cleaned_body := StripBadWords(params.Body, "****", badWords)
+	sendValidResponse(w, r, cleaned_body)
 }
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
