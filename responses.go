@@ -33,7 +33,11 @@ func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {
 		return
 	}
 
-	w.Write(dat)
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
 }
 
 func sendErrorResponse(w http.ResponseWriter, err_str string) {
@@ -47,7 +51,11 @@ func sendErrorResponse(w http.ResponseWriter, err_str string) {
 		log.Printf("Error marshalling JSON: %s", err)
 	}
 
-	w.Write(dat)
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
 }
 
 func sendChirpTooLong(w http.ResponseWriter) {
@@ -61,5 +69,9 @@ func sendChirpTooLong(w http.ResponseWriter) {
 		log.Printf("Error marshalling JSON: %s", err)
 	}
 
-	w.Write(dat)
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
 }
