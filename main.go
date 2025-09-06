@@ -48,12 +48,14 @@ func main() {
 		http.Redirect(w, r, "/app/", http.StatusFound)
 	})
 
-	mux.Handle("GET /app/", http.StripPrefix("/app", api_cfg.appHandler()))
-	mux.HandleFunc("GET /admin/metrics", api_cfg.metricsHandler)
-	mux.HandleFunc("POST /admin/reset", api_cfg.resetHandler)
-	mux.HandleFunc("GET /api/healthz", readinessHandler)
-	mux.HandleFunc("POST /api/users", api_cfg.registerUserHandler)
-	mux.HandleFunc("POST /api/chirps", api_cfg.addChirpHandler)
+	mux.Handle("GET /app/", http.StripPrefix("/app", api_cfg.AppHandler()))
+	mux.HandleFunc("GET /admin/metrics", api_cfg.MetricsHandler)
+	mux.HandleFunc("POST /admin/reset", api_cfg.ResetHandler)
+	mux.HandleFunc("GET /api/healthz", ReadinessHandler)
+	mux.HandleFunc("POST /api/users", api_cfg.RegisterUserHandler)
+	mux.HandleFunc("POST /api/chirps", api_cfg.PostChirpsHandler)
+	mux.HandleFunc("GET /api/chirps", api_cfg.GetChirpsHandler)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.GetChirpByIDHandler)
 
 	server := http.Server{
 		Addr:    ":8080",

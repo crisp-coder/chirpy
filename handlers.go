@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,13 +13,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) appHandler() http.Handler {
+func (cfg *apiConfig) AppHandler() http.Handler {
 	fileserver := http.FileServer(http.Dir("public"))
 	app_handler := middlewareLog(cfg.middlewareMetricsInc(fileserver))
 	return app_handler
 }
 
-func (cfg *apiConfig) registerUserHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	temp_user := data_models.User{}
 	err := decoder.Decode(&temp_user)
@@ -56,7 +57,54 @@ func (cfg *apiConfig) registerUserHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) GetChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
+	chirpID_str := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpID_str)
+	if err != nil {
+		log.Println(err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+	chirp, err := cfg.db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendChirpNotFoundResponse(w)
+			return
+		}
+		log.Println(err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	data_model_chirp := data_models.Chirp{}
+	data_model_chirp.Id = chirp.ID
+	data_model_chirp.CreatedAt = chirp.CreatedAt
+	data_model_chirp.UpdatedAt = chirp.UpdatedAt
+	data_model_chirp.Body = chirp.Body
+	data_model_chirp.UserID = chirp.UserID
+	sendChirpResponse(w, data_model_chirp)
+}
+
+func (cfg *apiConfig) GetChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetChirps(r.Context())
+	if err != nil {
+		log.Println(err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	data_model_chirps := make([]data_models.Chirp, len(chirps))
+	for i := range chirps {
+		data_model_chirps[i].Id = chirps[i].ID
+		data_model_chirps[i].CreatedAt = chirps[i].CreatedAt
+		data_model_chirps[i].UpdatedAt = chirps[i].UpdatedAt
+		data_model_chirps[i].Body = chirps[i].Body
+		data_model_chirps[i].UserID = chirps[i].UserID
+	}
+	sendChirpsResponse(w, data_model_chirps)
+}
+
+func (cfg *apiConfig) PostChirpsHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	chirp := data_models.Chirp{}
 	err := decoder.Decode(&chirp)
@@ -103,7 +151,7 @@ func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func readinessHandler(w http.ResponseWriter, r *http.Request) {
+func ReadinessHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("OK"))
 	if err != nil {
@@ -111,7 +159,7 @@ func readinessHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	body := fmt.Sprintf(`<html>
   <body>
     <h1>Welcome, Chirpy Admin</h1>
@@ -130,7 +178,7 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) ResetHandler(w http.ResponseWriter, r *http.Request) {
 	cfg.FileserverHits.Store(0)
 	err := cfg.db.Reset(r.Context())
 	if err != nil {

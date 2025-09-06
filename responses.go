@@ -22,6 +22,42 @@ type valid_resp struct {
 	CleanedBody string `json:"cleaned_body"`
 }
 
+func sendChirpNotFoundResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func sendChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
+	w.WriteHeader(http.StatusOK)
+	dat, err := json.Marshal(chirp)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
+}
+
+func sendChirpsResponse(w http.ResponseWriter, chirps []data_models.Chirp) {
+	w.WriteHeader(http.StatusOK)
+	dat, err := json.Marshal(chirps)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
+}
+
 func sendCreatedChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
 	w.WriteHeader(http.StatusCreated)
 	dat, err := json.Marshal(chirp)
