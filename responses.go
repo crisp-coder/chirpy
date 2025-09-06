@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/crisp-coder/chirpy/internal/data_models"
 )
 
 type parameters struct {
@@ -18,6 +20,22 @@ type err_resp struct {
 type valid_resp struct {
 	Valid       bool   `json:"valid"`
 	CleanedBody string `json:"cleaned_body"`
+}
+
+func sendCreatedChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
+	w.WriteHeader(http.StatusCreated)
+	dat, err := json.Marshal(chirp)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
 }
 
 func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {

@@ -56,18 +56,18 @@ func (cfg *apiConfig) registerUserHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func validateHandler(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) addChirpHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
+	chirp := data_models.Chirp{}
+	err := decoder.Decode(&chirp)
 
 	if err != nil {
-		log.Printf("Error decoding parameters: %s", err)
+		log.Println(err)
 		sendErrorResponse(w, err.Error())
 		return
 	}
 
-	if len(params.Body) > 140 {
+	if len(chirp.Body) > 140 {
 		sendChirpTooLong(w)
 		return
 	}
@@ -78,8 +78,29 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 		"fornax",
 	}
 
-	cleaned_body := StripBadWords(params.Body, "****", badWords)
-	sendCleanedResponse(w, cleaned_body)
+	cleaned_body := StripBadWords(chirp.Body, "****", badWords)
+
+	saved_chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Body:      cleaned_body,
+		UserID:    chirp.UserID,
+	})
+
+	if err != nil {
+		log.Println(err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	sendCreatedChirpResponse(w, data_models.Chirp{
+		Id:        saved_chirp.ID,
+		CreatedAt: saved_chirp.CreatedAt,
+		UpdatedAt: saved_chirp.UpdatedAt,
+		Body:      saved_chirp.Body,
+		UserID:    saved_chirp.UserID,
+	})
 }
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
