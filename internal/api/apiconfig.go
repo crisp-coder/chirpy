@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"sync/atomic"
@@ -6,7 +6,7 @@ import (
 	"github.com/crisp-coder/chirpy/internal/database"
 )
 
-type apiConfig struct {
-	db             *database.Queries
+type ApiConfig struct {
+	Db             *database.Queries
 	FileserverHits atomic.Int32
 }

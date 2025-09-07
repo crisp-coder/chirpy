@@ -1,32 +1,50 @@
-package main
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/crisp-coder/chirpy/internal/data_models"
 )
 
-type parameters struct {
-	Body string `json:"body"`
-}
-
-type err_resp struct {
+type ErrResp struct {
 	Error string `json:"error"`
 }
 
-type valid_resp struct {
+type ValidResp struct {
 	Valid       bool   `json:"valid"`
 	CleanedBody string `json:"cleaned_body"`
+}
+
+func sendLoginAccepted(w http.ResponseWriter, user User) {
+	w.WriteHeader(http.StatusOK)
+	dat, err := json.Marshal(user)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		sendErrorResponse(w, err.Error())
+		return
+	}
+
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("Error writing response: %w", err)
+	}
+}
+
+func sendUserNotFoundResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func sendIncorrectPasswordResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 func sendChirpNotFoundResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func sendChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
+func sendChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	w.WriteHeader(http.StatusOK)
 	dat, err := json.Marshal(chirp)
 	if err != nil {
@@ -42,7 +60,7 @@ func sendChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
 	}
 }
 
-func sendChirpsResponse(w http.ResponseWriter, chirps []data_models.Chirp) {
+func sendChirpsResponse(w http.ResponseWriter, chirps []Chirp) {
 	w.WriteHeader(http.StatusOK)
 	dat, err := json.Marshal(chirps)
 	if err != nil {
@@ -58,7 +76,7 @@ func sendChirpsResponse(w http.ResponseWriter, chirps []data_models.Chirp) {
 	}
 }
 
-func sendCreatedChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
+func sendCreatedChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	w.WriteHeader(http.StatusCreated)
 	dat, err := json.Marshal(chirp)
 	if err != nil {
@@ -76,7 +94,7 @@ func sendCreatedChirpResponse(w http.ResponseWriter, chirp data_models.Chirp) {
 
 func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {
 	w.WriteHeader(http.StatusOK)
-	respBody := valid_resp{
+	respBody := ValidResp{
 		Valid:       true,
 		CleanedBody: cleaned_body,
 	}
@@ -96,7 +114,7 @@ func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {
 
 func sendErrorResponse(w http.ResponseWriter, err_str string) {
 	w.WriteHeader(http.StatusInternalServerError)
-	respBody := err_resp{
+	respBody := ErrResp{
 		Error: fmt.Sprintf("Something went wrong: %s", err_str),
 	}
 
@@ -114,7 +132,7 @@ func sendErrorResponse(w http.ResponseWriter, err_str string) {
 
 func sendChirpTooLong(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
-	respBody := err_resp{
+	respBody := ErrResp{
 		Error: "Chirp is too long",
 	}
 
