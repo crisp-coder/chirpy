@@ -28,7 +28,8 @@ func main() {
 	dbQueries := database.New(db)
 
 	api_cfg := api.ApiConfig{
-		Db: dbQueries,
+		Db:         dbQueries,
+		JWT_SECRET: cfg.JWT_SECRET,
 	}
 
 	logFile, err := api.SetupLogging("application.log")

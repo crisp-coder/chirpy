@@ -9,7 +9,8 @@ import (
 const CONFIG_FILE_NAME = ".chirpyconfig.json"
 
 type Config struct {
-	DB_URL string
+	DB_URL     string
+	JWT_SECRET string
 }
 
 func Read() (Config, error) {

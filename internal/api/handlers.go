@@ -101,12 +101,24 @@ func (cfg *ApiConfig) PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jwtExpiry := loginParams.ExpiresInSeconds
+	if jwtExpiry > 3600 || jwtExpiry == 0 {
+		jwtExpiry = 3600
+	}
+
+	token, err := auth.MakeJWT(user.ID, cfg.JWT_SECRET, time.Duration(jwtExpiry)*time.Second)
+	if err != nil {
+		log.Println("error creating jwt: %w", err)
+		sendErrorResponse(w, "error creating jwt")
+	}
+
 	api_user := User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 		Password:  loginParams.Password,
+		Token:     token,
 	}
 
 	sendLoginAccepted(w, api_user)
@@ -166,8 +178,8 @@ func (cfg *ApiConfig) PostChirpsHandler(w http.ResponseWriter, r *http.Request) 
 	err := decoder.Decode(&chirp)
 
 	if err != nil {
-		log.Println(err)
-		sendErrorResponse(w, err.Error())
+		log.Println("error posting chirp: %w", err)
+		sendErrorResponse(w, "error posting chirp")
 		return
 	}
 
@@ -184,17 +196,42 @@ func (cfg *ApiConfig) PostChirpsHandler(w http.ResponseWriter, r *http.Request) 
 
 	cleaned_body := StripBadWords(chirp.Body, "****", badWords)
 
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Println("error posting chirp: %w", err)
+		sendErrorResponse(w, "error posting chirp")
+		return
+	}
+
+	userID, err := auth.ValidateJWT(bearerToken, cfg.JWT_SECRET)
+	if err != nil {
+		log.Println("error posting chirp: %w", err)
+		sendErrorResponse(w, "error posting chirp")
+		return
+	}
+
+	user, err := cfg.Db.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendUserNotFoundResponse(w)
+			return
+		}
+		log.Println("error posting chirp: %w", err)
+		sendErrorResponse(w, "error posting chirp")
+		return
+	}
+
 	saved_chirp, err := cfg.Db.CreateChirp(r.Context(), database.CreateChirpParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Body:      cleaned_body,
-		UserID:    chirp.UserID,
+		UserID:    user.ID,
 	})
 
 	if err != nil {
-		log.Println(err)
-		sendErrorResponse(w, err.Error())
+		log.Println("error posting chirp: %w", err)
+		sendErrorResponse(w, "error posting chirp")
 		return
 	}
 
@@ -238,11 +275,13 @@ func (cfg *ApiConfig) ResetHandler(w http.ResponseWriter, r *http.Request) {
 	cfg.FileserverHits.Store(0)
 	err := cfg.Db.ResetUsers(r.Context())
 	if err != nil {
-		log.Println("Error resetting database.")
+		log.Println("error resetting database.")
+		sendErrorResponse(w, "error resetting database")
 	}
 	err = cfg.Db.ResetChirps(r.Context())
 	if err != nil {
-		log.Println("Error resetting database.")
+		log.Println("error resetting database.")
+		sendErrorResponse(w, "error resetting database")
 	}
 }
 

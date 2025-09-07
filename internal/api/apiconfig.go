@@ -8,5 +8,6 @@ import (
 
 type ApiConfig struct {
 	Db             *database.Queries
+	JWT_SECRET     string
 	FileserverHits atomic.Int32
 }

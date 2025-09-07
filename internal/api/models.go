@@ -7,8 +7,9 @@ import (
 )
 
 type LoginParams struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email            string `json:"email"`
+	Password         string `json:"password"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
 }
 
 type User struct {
@@ -17,6 +18,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
+	Token     string    `json:"token"`
 }
 
 type Chirp struct {
