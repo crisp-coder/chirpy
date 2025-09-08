@@ -19,6 +19,63 @@ func (cfg *ApiConfig) AppHandler() http.Handler {
 	return app_handler
 }
 
+func (cfg *ApiConfig) PutUsersHandler(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Println("missing bearer token in headers: %w", err)
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(accessToken, cfg.JWT_SECRET)
+	if err != nil {
+		log.Println("error updating user: %w", err)
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	temp_user := User{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&temp_user)
+	if err != nil {
+		log.Println("error decoding update user params: %w", err)
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(temp_user.Password)
+	if err != nil {
+		log.Println("Error hashing password: %w", err)
+		sendErrorResponse(w, "error logging in")
+		return
+	}
+
+	user, err := cfg.Db.UpdateUser(r.Context(), database.UpdateUserParams{
+		ID:             userId,
+		UpdatedAt:      time.Now(),
+		Email:          temp_user.Email,
+		HashedPassword: hashedPassword,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendUserNotFoundResponse(w)
+		} else {
+			log.Println("error querying update user: %w", err)
+			sendErrorResponse(w, "error updating user")
+		}
+		return
+	}
+
+	api_user := User{}
+	api_user.ID = user.ID
+	api_user.CreatedAt = user.CreatedAt
+	api_user.UpdatedAt = user.UpdatedAt
+	api_user.Email = user.Email
+	api_user.Password = temp_user.Password
+
+	sendUpdatedUser(w, api_user)
+}
+
 func (cfg *ApiConfig) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	temp_user := User{}
@@ -59,19 +116,7 @@ func (cfg *ApiConfig) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 		Password:  temp_user.Password,
 	}
 
-	dat, err := json.Marshal(api_user)
-	if err != nil {
-		log.Println("Error marshalling json: %w", err)
-		sendErrorResponse(w, "error logging in")
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(dat)
-	if err != nil {
-		log.Println("Error writing response: %w", err)
-		sendErrorResponse(w, "error logging in")
-		return
-	}
+	sendUserCreated(w, api_user)
 }
 
 func (cfg *ApiConfig) PostLoginHandler(w http.ResponseWriter, r *http.Request) {

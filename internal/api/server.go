@@ -17,6 +17,7 @@ func MakeServer(api_cfg *ApiConfig) *http.Server {
 	mux.HandleFunc("POST /admin/reset", api_cfg.ResetHandler)
 	mux.HandleFunc("GET /api/healthz", api_cfg.ReadinessHandler)
 	mux.HandleFunc("POST /api/users", api_cfg.PostUsersHandler)
+	mux.HandleFunc("PUT /api/users", api_cfg.PutUsersHandler)
 	mux.HandleFunc("POST /api/login", api_cfg.PostLoginHandler)
 	mux.HandleFunc("POST /api/refresh", api_cfg.PostRefreshHandler)
 	mux.HandleFunc("POST /api/revoke", api_cfg.PostRevokeHandler)
