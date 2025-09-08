@@ -18,6 +18,8 @@ func MakeServer(api_cfg *ApiConfig) *http.Server {
 	mux.HandleFunc("GET /api/healthz", api_cfg.ReadinessHandler)
 	mux.HandleFunc("POST /api/users", api_cfg.PostUsersHandler)
 	mux.HandleFunc("POST /api/login", api_cfg.PostLoginHandler)
+	mux.HandleFunc("POST /api/refresh", api_cfg.PostRefreshHandler)
+	mux.HandleFunc("POST /api/revoke", api_cfg.PostRevokeHandler)
 	mux.HandleFunc("POST /api/chirps", api_cfg.PostChirpsHandler)
 	mux.HandleFunc("GET /api/chirps", api_cfg.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.GetChirpByIDHandler)

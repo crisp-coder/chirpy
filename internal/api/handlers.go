@@ -26,14 +26,14 @@ func (cfg *ApiConfig) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("error reading request body: %w", err)
-		sendErrorResponse(w, "error reading request")
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 
 	hashed_password, err := auth.HashPassword(temp_user.Password)
 	if err != nil {
 		log.Println("Error hashing password: %w", err)
-		sendErrorResponse(w, "error hashing password")
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 
@@ -47,7 +47,7 @@ func (cfg *ApiConfig) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("error creating user: %w", err)
-		sendErrorResponse(w, "error creating user")
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 
@@ -62,14 +62,14 @@ func (cfg *ApiConfig) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 	dat, err := json.Marshal(api_user)
 	if err != nil {
 		log.Println("Error marshalling json: %w", err)
-		sendErrorResponse(w, "error marshalling json")
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(dat)
 	if err != nil {
 		log.Println("Error writing response: %w", err)
-		sendErrorResponse(w, "error writing response")
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 }
@@ -80,7 +80,7 @@ func (cfg *ApiConfig) PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&loginParams)
 	if err != nil {
 		log.Println("error decoding login parameters: %w", err)
-		sendErrorResponse(w, err.Error())
+		sendErrorResponse(w, "error logging in")
 		return
 	}
 
@@ -106,22 +106,126 @@ func (cfg *ApiConfig) PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		jwtExpiry = 3600
 	}
 
-	token, err := auth.MakeJWT(user.ID, cfg.JWT_SECRET, time.Duration(jwtExpiry)*time.Second)
+	refToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		log.Println("error creating refresh token: %w", err)
+		sendErrorResponse(w, "error logging in")
+	}
+
+	duration60Days := time.Hour * time.Duration(24*60)
+
+	api_refToken, err := cfg.Db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     refToken,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		ExpiresAt: sql.NullTime{Valid: true, Time: time.Now().Add(duration60Days)},
+	})
+
+	if err != nil {
+		log.Println("error inserting refresh token into database: %w", err)
+		sendErrorResponse(w, "error logging in")
+	}
+
+	jwtToken, err := auth.MakeJWT(user.ID, cfg.JWT_SECRET, time.Duration(jwtExpiry)*time.Second)
 	if err != nil {
 		log.Println("error creating jwt: %w", err)
-		sendErrorResponse(w, "error creating jwt")
+		sendErrorResponse(w, "error logging in")
 	}
 
 	api_user := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Password:  loginParams.Password,
-		Token:     token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Password:     loginParams.Password,
+		Token:        jwtToken,
+		RefreshToken: api_refToken.Token,
 	}
 
 	sendLoginAccepted(w, api_user)
+}
+
+func (cfg *ApiConfig) PostRefreshHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Println("error getting bearer token from header")
+		sendErrorResponse(w, "error refreshing token")
+		return
+	}
+
+	refreshToken, err := cfg.Db.GetRefreshTokenByToken(r.Context(), token)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendTokenExpiredResponse(w)
+		} else {
+			log.Println("error refreshing token: %w", err)
+			sendErrorResponse(w, "error refreshing token")
+		}
+		return
+	}
+
+	if time.Now().After(refreshToken.ExpiresAt.Time) || refreshToken.RevokedAt.Valid {
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	user, err := cfg.Db.GetUserByID(r.Context(), refreshToken.UserID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendTokenExpiredResponse(w)
+		} else {
+			log.Println("error refreshing token: %w", err)
+			sendErrorResponse(w, "error refreshing token")
+		}
+		return
+	}
+
+	jwtToken, err := auth.MakeJWT(user.ID, cfg.JWT_SECRET, time.Duration(1)*time.Hour)
+	if err != nil {
+		log.Println("error refreshing token: %w", err)
+		sendErrorResponse(w, "error refreshing token")
+		return
+	}
+
+	accessToken := AccessToken{
+		Token: jwtToken,
+	}
+
+	sendAccessTokenResponse(w, accessToken)
+}
+
+func (cfg *ApiConfig) PostRevokeHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Println("error getting bearer token from header")
+		sendErrorResponse(w, "error revoking refresh token")
+		return
+	}
+
+	refreshToken, err := cfg.Db.GetRefreshTokenByToken(r.Context(), token)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendTokenExpiredResponse(w)
+		} else {
+			log.Println(err)
+		}
+		return
+	}
+	err = cfg.Db.SetRefreshTokenRevoked(
+		r.Context(),
+		database.SetRefreshTokenRevokedParams{
+			Token:     refreshToken.Token,
+			UpdatedAt: time.Now(),
+			RevokedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		})
+
+	if err != nil {
+		log.Println("error revoking token in database: %w", err)
+		sendErrorResponse(w, "error revoking refresh token")
+	}
+
+	sendRefreshTokenRevokedResponse(w)
 }
 
 func (cfg *ApiConfig) GetChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -205,8 +309,7 @@ func (cfg *ApiConfig) PostChirpsHandler(w http.ResponseWriter, r *http.Request) 
 
 	userID, err := auth.ValidateJWT(bearerToken, cfg.JWT_SECRET)
 	if err != nil {
-		log.Println("error posting chirp: %w", err)
-		sendErrorResponse(w, "error posting chirp")
+		sendTokenExpiredResponse(w)
 		return
 	}
 
@@ -214,10 +317,10 @@ func (cfg *ApiConfig) PostChirpsHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			sendUserNotFoundResponse(w)
-			return
+		} else {
+			log.Println("error posting chirp: %w", err)
+			sendErrorResponse(w, "error posting chirp")
 		}
-		log.Println("error posting chirp: %w", err)
-		sendErrorResponse(w, "error posting chirp")
 		return
 	}
 
@@ -279,6 +382,11 @@ func (cfg *ApiConfig) ResetHandler(w http.ResponseWriter, r *http.Request) {
 		sendErrorResponse(w, "error resetting database")
 	}
 	err = cfg.Db.ResetChirps(r.Context())
+	if err != nil {
+		log.Println("error resetting database.")
+		sendErrorResponse(w, "error resetting database")
+	}
+	err = cfg.Db.ResetRefreshTokens(r.Context())
 	if err != nil {
 		log.Println("error resetting database.")
 		sendErrorResponse(w, "error resetting database")

@@ -52,7 +52,7 @@ func TestGetBearerToken(t *testing.T) {
 		t.Error("token creation failed")
 	}
 	req, _ := http.NewRequest(http.MethodGet, "https://localhost:8080/", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Add("Authorization", "Bearer "+token)
 
 	bearerToken, err := GetBearerToken(req.Header)
 	if err != nil {

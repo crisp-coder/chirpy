@@ -20,7 +20,7 @@ func sendLoginAccepted(w http.ResponseWriter, user User) {
 	w.WriteHeader(http.StatusOK)
 	dat, err := json.Marshal(user)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 		sendErrorResponse(w, err.Error())
 		return
 	}
@@ -28,7 +28,7 @@ func sendLoginAccepted(w http.ResponseWriter, user User) {
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
@@ -44,11 +44,33 @@ func sendChirpNotFoundResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
+func sendAccessTokenResponse(w http.ResponseWriter, token AccessToken) {
+	w.WriteHeader(http.StatusOK)
+	dat, err := json.Marshal(token)
+	if err != nil {
+		log.Printf("error marshalling JSON: %s", err)
+		sendErrorResponse(w, "error sending access token")
+	}
+	_, err = w.Write(dat)
+
+	if err != nil {
+		log.Println("error writing response: %w", err)
+	}
+}
+
+func sendTokenExpiredResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusUnauthorized)
+}
+
+func sendRefreshTokenRevokedResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func sendChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	w.WriteHeader(http.StatusOK)
 	dat, err := json.Marshal(chirp)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 		sendErrorResponse(w, err.Error())
 		return
 	}
@@ -56,7 +78,7 @@ func sendChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
@@ -64,7 +86,7 @@ func sendChirpsResponse(w http.ResponseWriter, chirps []Chirp) {
 	w.WriteHeader(http.StatusOK)
 	dat, err := json.Marshal(chirps)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 		sendErrorResponse(w, err.Error())
 		return
 	}
@@ -72,7 +94,7 @@ func sendChirpsResponse(w http.ResponseWriter, chirps []Chirp) {
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
@@ -80,7 +102,7 @@ func sendCreatedChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	w.WriteHeader(http.StatusCreated)
 	dat, err := json.Marshal(chirp)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 		sendErrorResponse(w, err.Error())
 		return
 	}
@@ -88,7 +110,7 @@ func sendCreatedChirpResponse(w http.ResponseWriter, chirp Chirp) {
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
@@ -101,32 +123,32 @@ func sendCleanedResponse(w http.ResponseWriter, cleaned_body string) {
 
 	dat, err := json.Marshal(respBody)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 		return
 	}
 
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
 func sendErrorResponse(w http.ResponseWriter, err_str string) {
 	w.WriteHeader(http.StatusInternalServerError)
 	respBody := ErrResp{
-		Error: fmt.Sprintf("Something went wrong: %s", err_str),
+		Error: fmt.Sprintf("something went wrong: %s", err_str),
 	}
 
 	dat, err := json.Marshal(respBody)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 	}
 
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
 
@@ -138,12 +160,12 @@ func sendChirpTooLong(w http.ResponseWriter) {
 
 	dat, err := json.Marshal(respBody)
 	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
+		log.Printf("error marshalling JSON: %s", err)
 	}
 
 	_, err = w.Write(dat)
 
 	if err != nil {
-		log.Println("Error writing response: %w", err)
+		log.Println("error writing response: %w", err)
 	}
 }
