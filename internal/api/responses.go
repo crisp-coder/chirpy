@@ -63,6 +63,14 @@ func sendLoginAccepted(w http.ResponseWriter, user User) {
 	}
 }
 
+func sendUserForbiddenResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusForbidden)
+}
+
+func sendChirpDeletedResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func sendUserNotFoundResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 }

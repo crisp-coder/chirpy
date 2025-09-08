@@ -19,6 +19,66 @@ func (cfg *ApiConfig) AppHandler() http.Handler {
 	return app_handler
 }
 
+func (cfg *ApiConfig) DeleteChirpByID(w http.ResponseWriter, r *http.Request) {
+
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Println("bearer token not found: %w", err)
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(accessToken, cfg.JWT_SECRET)
+	if err != nil {
+		log.Println("access token expired: %w", err)
+		sendTokenExpiredResponse(w)
+		return
+	}
+
+	user, err := cfg.Db.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendUserNotFoundResponse(w)
+		} else {
+			log.Println("error getting user from database: %w", err)
+			sendErrorResponse(w, "error deleting chirp")
+		}
+
+	}
+
+	chirpID_str := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpID_str)
+	if err != nil {
+		log.Println("error parsing chirp id: %w", err)
+		sendErrorResponse(w, "error deleting chirp")
+		return
+	}
+
+	chirp, err := cfg.Db.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			sendChirpNotFoundResponse(w)
+		} else {
+			log.Println("error getting chirp from database: %w", err)
+			sendErrorResponse(w, "error deleting chirp")
+		}
+		return
+	}
+
+	if chirp.UserID != user.ID {
+		sendUserForbiddenResponse(w)
+		return
+	}
+
+	err = cfg.Db.DeleteChirpByID(r.Context(), chirp.ID)
+	if err != nil {
+		log.Println("error deleting chirp from database: %w", err)
+		sendErrorResponse(w, "error deleting chirp")
+	}
+
+	sendChirpDeletedResponse(w)
+}
+
 func (cfg *ApiConfig) PutUsersHandler(w http.ResponseWriter, r *http.Request) {
 	accessToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -421,16 +481,19 @@ func (cfg *ApiConfig) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *ApiConfig) ResetHandler(w http.ResponseWriter, r *http.Request) {
 	cfg.FileserverHits.Store(0)
+
 	err := cfg.Db.ResetUsers(r.Context())
 	if err != nil {
 		log.Println("error resetting database.")
 		sendErrorResponse(w, "error resetting database")
 	}
+
 	err = cfg.Db.ResetChirps(r.Context())
 	if err != nil {
 		log.Println("error resetting database.")
 		sendErrorResponse(w, "error resetting database")
 	}
+
 	err = cfg.Db.ResetRefreshTokens(r.Context())
 	if err != nil {
 		log.Println("error resetting database.")

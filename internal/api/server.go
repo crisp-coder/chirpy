@@ -24,6 +24,7 @@ func MakeServer(api_cfg *ApiConfig) *http.Server {
 	mux.HandleFunc("POST /api/chirps", api_cfg.PostChirpsHandler)
 	mux.HandleFunc("GET /api/chirps", api_cfg.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.GetChirpByIDHandler)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", api_cfg.DeleteChirpByID)
 
 	server := http.Server{
 		Addr:    ":8080",
