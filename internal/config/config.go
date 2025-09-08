@@ -11,6 +11,7 @@ const CONFIG_FILE_NAME = ".chirpyconfig.json"
 type Config struct {
 	DB_URL     string
 	JWT_SECRET string
+	POLKA_KEY  string
 }
 
 func Read() (Config, error) {

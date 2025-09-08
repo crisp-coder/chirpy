@@ -6,6 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type PolkaEvent struct {
+	Event string    `json:"event"`
+	Data  PolkaData `json:"data"`
+}
+
+type PolkaData struct {
+	UserId string `json:"user_id"`
+}
+
 type AccessToken struct {
 	Token string `json:"token"`
 }
@@ -24,6 +33,7 @@ type User struct {
 	Password     string    `json:"password"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 type Chirp struct {

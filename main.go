@@ -30,6 +30,7 @@ func main() {
 	api_cfg := api.ApiConfig{
 		Db:         dbQueries,
 		JWT_SECRET: cfg.JWT_SECRET,
+		POLKA_KEY:  cfg.POLKA_KEY,
 	}
 
 	logFile, err := api.SetupLogging("application.log")

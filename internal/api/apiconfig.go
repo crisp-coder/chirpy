@@ -9,5 +9,6 @@ import (
 type ApiConfig struct {
 	Db             *database.Queries
 	JWT_SECRET     string
+	POLKA_KEY      string
 	FileserverHits atomic.Int32
 }

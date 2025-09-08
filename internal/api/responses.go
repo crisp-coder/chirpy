@@ -63,6 +63,18 @@ func sendLoginAccepted(w http.ResponseWriter, user User) {
 	}
 }
 
+func sendBadAPIKeyResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusUnauthorized)
+}
+
+func sendIgnorePolkaEventResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func sendUserUpgradedSuccessResponse(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func sendUserForbiddenResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusForbidden)
 }

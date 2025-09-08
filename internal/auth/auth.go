@@ -73,7 +73,7 @@ func GetBearerToken(headers http.Header) (string, error) {
 			return words[1], nil
 		}
 	}
-	return "", fmt.Errorf("no valid authorization token")
+	return "", fmt.Errorf("no bearer token found")
 }
 
 func MakeRefreshToken() (string, error) {
@@ -84,4 +84,15 @@ func MakeRefreshToken() (string, error) {
 	}
 	hexStr := hex.EncodeToString(bytes)
 	return hexStr, nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	tokens := headers.Values("Authorization")
+	for _, tokenStr := range tokens {
+		words := strings.Fields(tokenStr)
+		if strings.ToLower(words[0]) == "apikey" && len(words) == 2 {
+			return words[1], nil
+		}
+	}
+	return "", fmt.Errorf("no api key found")
 }

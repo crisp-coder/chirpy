@@ -24,7 +24,8 @@ func MakeServer(api_cfg *ApiConfig) *http.Server {
 	mux.HandleFunc("POST /api/chirps", api_cfg.PostChirpsHandler)
 	mux.HandleFunc("GET /api/chirps", api_cfg.GetChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", api_cfg.GetChirpByIDHandler)
-	mux.HandleFunc("DELETE /api/chirps/{chirpID}", api_cfg.DeleteChirpByID)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", api_cfg.DeleteChirpByIDHandler)
+	mux.HandleFunc("POST /api/polka/webhooks", api_cfg.PostPolkaWebhookHandler)
 
 	server := http.Server{
 		Addr:    ":8080",

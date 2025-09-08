@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/crisp-coder/chirpy/internal/auth"
@@ -19,7 +22,71 @@ func (cfg *ApiConfig) AppHandler() http.Handler {
 	return app_handler
 }
 
-func (cfg *ApiConfig) DeleteChirpByID(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) PostPolkaWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	apikey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		log.Println(err)
+		sendBadAPIKeyResponse(w)
+		return
+	}
+	if apikey != cfg.POLKA_KEY {
+		log.Println("incorrect apikey for polka event request")
+		sendBadAPIKeyResponse(w)
+		return
+	}
+
+	polkaEvent := PolkaEvent{}
+	jsonData, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Println("error decoding polka event")
+		sendErrorResponse(w, "error handling polka event")
+		return
+	}
+	err = json.Unmarshal(jsonData, &polkaEvent)
+	if err != nil {
+		log.Println("error decoding polka event")
+		sendErrorResponse(w, "error handling polka event")
+		return
+	}
+
+	log.Println(polkaEvent)
+
+	if polkaEvent.Event != "user.upgraded" {
+		log.Println("unrecognized event type from polka")
+		sendIgnorePolkaEventResponse(w)
+		return
+	}
+
+	userID, err := uuid.Parse(polkaEvent.Data.UserId)
+	if err != nil {
+		log.Println("error parsing user id from polka event")
+		sendErrorResponse(w, "error handling polka event")
+		return
+	}
+
+	user, err := cfg.Db.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Println("user not found for chirpy red upgrade event")
+			sendUserNotFoundResponse(w)
+		} else {
+			log.Println("error getting user from database")
+			sendErrorResponse(w, "error handling polka event")
+		}
+		return
+	}
+
+	user, err = cfg.Db.UpgradeUser(r.Context(), user.ID)
+	if err != nil {
+		log.Println("error upgrading user in database: %w", err)
+		sendErrorResponse(w, "error handling polka event")
+		return
+	}
+
+	sendUserUpgradedSuccessResponse(w)
+}
+
+func (cfg *ApiConfig) DeleteChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	accessToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -246,6 +313,7 @@ func (cfg *ApiConfig) PostLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Password:     loginParams.Password,
 		Token:        jwtToken,
 		RefreshToken: api_refToken.Token,
+		IsChirpyRed:  user.IsChirpyRed.Bool,
 	}
 
 	sendLoginAccepted(w, api_user)
@@ -363,11 +431,34 @@ func (cfg *ApiConfig) GetChirpByIDHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (cfg *ApiConfig) GetChirpsHandler(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.Db.GetChirps(r.Context())
-	if err != nil {
-		log.Println(err)
-		sendErrorResponse(w, err.Error())
-		return
+	authorID := r.URL.Query().Get("author_id")
+	sort_p := r.URL.Query().Get("sort")
+	var chirps []database.Chirp
+	var err error
+	if authorID != "" {
+		userID, err := uuid.Parse(authorID)
+		if err != nil {
+			log.Println("error parsing author id")
+			sendErrorResponse(w, "error getting chirps")
+			return
+		}
+		chirps, err = cfg.Db.GetChirpsByUserID(r.Context(), userID)
+		if err != nil {
+			log.Println(err)
+			sendErrorResponse(w, err.Error())
+			return
+		}
+	} else {
+		chirps, err = cfg.Db.GetChirps(r.Context())
+		if err != nil {
+			log.Println(err)
+			sendErrorResponse(w, err.Error())
+			return
+		}
+	}
+
+	if strings.ToLower(sort_p) == "asc" || sort_p == "" {
+		sort.Slice(chirps, func(i int, j int) bool { return chirps[i].CreatedAt.Before(chirps[j].CreatedAt) })
 	}
 
 	api_Chirp := make([]Chirp, len(chirps))
